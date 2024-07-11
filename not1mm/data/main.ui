@@ -1351,6 +1351,7 @@
     <addaction name="actionLog_Window"/>
     <addaction name="actionBandmap"/>
     <addaction name="actionCheck_Window"/>
+    <addaction name="actionSpidi_Window"/>
     <addaction name="actionVFO"/>
    </widget>
    <widget class="QMenu" name="menuOther">
@@ -1780,6 +1781,20 @@
     </font>
    </property>
   </action>
+  <action name="actionSpidi_Window">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Spidi Partial</string>
+   </property>
+   <property name="font">
+    <font>
+     <family>JetBrains Mono</family>
+    </font>
+   </property>
+  </action>
+
   <action name="actionVFO">
    <property name="checkable">
     <bool>true</bool>

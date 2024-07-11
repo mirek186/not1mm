@@ -74,6 +74,7 @@ from not1mm.lib.ft8_watcher import FT8Watcher
 import not1mm.fsutils as fsutils
 from not1mm.logwindow import LogWindow
 from not1mm.checkwindow import CheckWindow
+from not1mm.spidiwindow import SpidiWindow
 from not1mm.bandmap import BandMapWindow
 from not1mm.vfo import VfoWindow
 from not1mm.radio import Radio
@@ -196,6 +197,7 @@ class MainWindow(QtWidgets.QMainWindow):
     rig_control = None
     log_window = None
     check_window = None
+    spidi_window = None
     bandmap_window = None
     vfo_window = None
 
@@ -230,6 +232,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actionLog_Window.triggered.connect(self.launch_log_window)
         self.actionBandmap.triggered.connect(self.launch_bandmap_window)
         self.actionCheck_Window.triggered.connect(self.launch_check_window)
+        self.actionSpidi_Window.triggered.connect(self.launch_spidi_window)
         self.actionVFO.triggered.connect(self.launch_vfo)
         self.actionRecalculate_Mults.triggered.connect(self.recalculate_mults)
 
@@ -541,6 +544,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self.check_window = CheckWindow()
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.check_window)
             self.check_window.show()
+
+        self.actionSpidi_Window.setChecked(self.pref.get("spidiwindow", False))
+        if self.spidi_window:
+            self.spidi_window.close()
+        if self.actionSpidi_Window.isChecked():
+            self.spidi_window = SpidiWindow()
+            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.spidi_window)
+            self.spidi_window.show()
 
         self.actionVFO.setChecked(self.pref.get("vfowindow", False))
         if self.vfo_window:
@@ -1454,6 +1465,17 @@ class MainWindow(QtWidgets.QMainWindow):
             self.check_window = CheckWindow()
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.check_window)
             self.check_window.show()
+
+    def launch_spidi_window(self) -> None:
+        """Launch the spidi window"""
+        self.pref["spidiwindow"] = self.actionSpidi_Window.isChecked()
+        self.write_preference()
+        if self.spidi_window:
+            self.spidi_window.close()
+        if self.actionSpidi_Window.isChecked():
+            self.spidi_window = SpidiWindow()
+            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.spidi_window)
+            self.spidi_window.show()
 
     def launch_vfo(self) -> None:
         """Launch the VFO window"""
@@ -2801,6 +2823,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 daemon=True,
             )
             _thethread.start()
+            #self.check_callsign2(stripped_text)
             self.next_field.setFocus()
             return
         cmd = {}
@@ -2917,6 +2940,7 @@ class MainWindow(QtWidgets.QMainWindow):
         None
         """
 
+        logger.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MIREK CALL1 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         result = self.cty_lookup(callsign)
         debug_result = f"{result}"
         logger.debug("%s", debug_result)
@@ -2967,6 +2991,7 @@ class MainWindow(QtWidgets.QMainWindow):
         None
         """
 
+        logger.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MIREK CALLSIGN222222 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         callsign = callsign.strip()
         debug_lookup = f"{self.look_up}"
         logger.debug("%s, %s", callsign, debug_lookup)
@@ -2976,13 +3001,27 @@ class MainWindow(QtWidgets.QMainWindow):
                 debug_response = f"{response}"
                 logger.debug("The Response: %s\n", debug_response)
                 if response:
+                    logger.debug("Inside response")
                     theirgrid = response.get("grid", "")
                     self.contact["GridSquare"] = theirgrid
                     _theircountry = response.get("country", "")
-                    if self.station.get("GridSquare", ""):
-                        heading = bearing(self.station.get("GridSquare", ""), theirgrid)
+                    logger.debug("Contact: %s\n", self.contact)
+                    logger.debug("Station: %s\n", self.station)
+#                    if self.station.get("GridSquare", ""):
+#                        logger.debug("Inside station")
+#                        heading = bearing(self.station.get("GridSquare", ""), theirgrid)
+#                        kilometers = distance(
+#                            self.station.get("GridSquare", ""), theirgrid
+#                        )
+#                        self.heading_distance.setText(
+#                            f"{theirgrid} Hdg {heading}° LP {reciprocol(heading)}° / "
+#                            f"distance {int(kilometers*0.621371)}mi {kilometers}km"
+#                        )
+                    if self.contact.get("GridSquare", ""):
+                        logger.debug("Inside station")
+                        heading = bearing(self.contact.get("GridSquare", ""), theirgrid)
                         kilometers = distance(
-                            self.station.get("GridSquare", ""), theirgrid
+                            self.contact.get("GridSquare", ""), theirgrid
                         )
                         self.heading_distance.setText(
                             f"{theirgrid} Hdg {heading}° LP {reciprocol(heading)}° / "
