@@ -1351,7 +1351,7 @@
     <addaction name="actionLog_Window"/>
     <addaction name="actionBandmap"/>
     <addaction name="actionCheck_Window"/>
-    <addaction name="actionSpidi_Window"/>
+    <addaction name="action_qrz_lookup_Window"/>
     <addaction name="actionVFO"/>
    </widget>
    <widget class="QMenu" name="menuOther">
@@ -1781,12 +1781,12 @@
     </font>
    </property>
   </action>
-  <action name="actionSpidi_Window">
+  <action name="action_qrz_lookup_Window">
    <property name="checkable">
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Spidi Partial</string>
+    <string>QRZ Lookup</string>
    </property>
    <property name="font">
     <font>

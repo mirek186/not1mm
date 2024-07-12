@@ -3,7 +3,7 @@
 not1mm Contest logger
 Email: michael.bridak@gmail.com
 GPL V3
-Class: SpidiWindow
+Class: QRZLookupWindow
 Purpose: Onscreen widget to show possible matches to callsigns entered in the main window.
 """
 # pylint: disable=no-name-in-module, unused-import, no-member, invalid-name, c-extension-no-member
@@ -28,7 +28,7 @@ from not1mm.lib.super_check_partial_db import SCP_DB
 logger = logging.getLogger(__name__)
 
 
-class SpidiWindow(QDockWidget):
+class QRZLookupWindow(QDockWidget):
     """The check window. Shows list or probable stations."""
 
     multicast_interface = None
@@ -54,7 +54,7 @@ class SpidiWindow(QDockWidget):
         self.database = DataBase(self.dbname, fsutils.APP_DATA_PATH)
         self.database.current_contest = self.pref.get("contest", 0)
 
-        uic.loadUi(fsutils.APP_DATA_PATH / "spidiwindow.ui", self)
+        uic.loadUi(fsutils.APP_DATA_PATH / "qrz_lookup_window.ui", self)
         self.mscp = SCP_DB(fsutils.APP_DATA_PATH)
         self._udpwatch = None
         self.udp_fifo = queue.Queue()

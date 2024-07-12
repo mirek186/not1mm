@@ -74,7 +74,7 @@ from not1mm.lib.ft8_watcher import FT8Watcher
 import not1mm.fsutils as fsutils
 from not1mm.logwindow import LogWindow
 from not1mm.checkwindow import CheckWindow
-from not1mm.qrz_lookup_window import SpidiWindow
+from not1mm.qrz_lookup_window import QRZLookupWindow
 from not1mm.bandmap import BandMapWindow
 from not1mm.vfo import VfoWindow
 from not1mm.radio import Radio
@@ -197,7 +197,7 @@ class MainWindow(QtWidgets.QMainWindow):
     rig_control = None
     log_window = None
     check_window = None
-    spidi_window = None
+    qrz_lookup_window = None
     bandmap_window = None
     vfo_window = None
 
@@ -232,7 +232,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actionLog_Window.triggered.connect(self.launch_log_window)
         self.actionBandmap.triggered.connect(self.launch_bandmap_window)
         self.actionCheck_Window.triggered.connect(self.launch_check_window)
-        self.actionSpidi_Window.triggered.connect(self.launch_spidi_window)
+        self.action_qrz_lookup_Window.triggered.connect(self.launch_qrz_lookup_window)
         self.actionVFO.triggered.connect(self.launch_vfo)
         self.actionRecalculate_Mults.triggered.connect(self.recalculate_mults)
 
@@ -545,13 +545,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.check_window)
             self.check_window.show()
 
-        self.actionSpidi_Window.setChecked(self.pref.get("spidiwindow", False))
-        if self.spidi_window:
-            self.spidi_window.close()
-        if self.actionSpidi_Window.isChecked():
-            self.spidi_window = SpidiWindow()
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.spidi_window)
-            self.spidi_window.show()
+        self.action_qrz_lookup_Window.setChecked(self.pref.get("qrz_lookup_window", False))
+        if self.qrz_lookup_window:
+            self.qrz_lookup_window.close()
+        if self.action_qrz_lookup_Window.isChecked():
+            self.qrz_lookup_window = QRZLookupWindow()
+            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.qrz_lookup_window)
+            self.qrz_lookup_window.show()
 
         self.actionVFO.setChecked(self.pref.get("vfowindow", False))
         if self.vfo_window:
@@ -1466,16 +1466,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.check_window)
             self.check_window.show()
 
-    def launch_spidi_window(self) -> None:
-        """Launch the spidi window"""
-        self.pref["spidiwindow"] = self.actionSpidi_Window.isChecked()
+    def launch_qrz_lookup_window(self) -> None:
+        """Launch the qrz_lookup window"""
+        self.pref["qrz_lookup_window"] = self.action_qrz_lookup_Window.isChecked()
         self.write_preference()
-        if self.spidi_window:
-            self.spidi_window.close()
-        if self.actionSpidi_Window.isChecked():
-            self.spidi_window = SpidiWindow()
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.spidi_window)
-            self.spidi_window.show()
+        if self.qrz_lookup_window:
+            self.qrz_lookup_window.close()
+        if self.action_qrz_lookup_Window.isChecked():
+            self.qrz_lookup_window = QRZLookupWindow()
+            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.qrz_lookup_window)
+            self.qrz_lookup_window.show()
 
     def launch_vfo(self) -> None:
         """Launch the VFO window"""
