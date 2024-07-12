@@ -74,7 +74,7 @@ from not1mm.lib.ft8_watcher import FT8Watcher
 import not1mm.fsutils as fsutils
 from not1mm.logwindow import LogWindow
 from not1mm.checkwindow import CheckWindow
-from not1mm.spidiwindow import SpidiWindow
+from not1mm.qrz_lookup_window import SpidiWindow
 from not1mm.bandmap import BandMapWindow
 from not1mm.vfo import VfoWindow
 from not1mm.radio import Radio
