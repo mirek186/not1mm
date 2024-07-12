@@ -3415,7 +3415,7 @@ def run() -> None:
     sys.exit(app.exec())
 
 
-DEBUG_ENABLED = False
+DEBUG_ENABLED = True
 if Path("./debug").exists():
     DEBUG_ENABLED = True
 

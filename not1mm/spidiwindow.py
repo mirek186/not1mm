@@ -23,7 +23,7 @@ from PyQt6.QtGui import QMouseEvent, QColorConstants, QPalette, QColor
 import not1mm.fsutils as fsutils
 from not1mm.lib.database import DataBase
 from not1mm.lib.multicast import Multicast
-from not1mm.lib.super_check_partial import SCP
+from not1mm.lib.super_check_partial_db import SCP_DB
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +36,8 @@ class SpidiWindow(QDockWidget):
     pref = {}
     call = None
     masterLayout: QVBoxLayout = None
-    dxcLayout: QVBoxLayout = None
-    qsoLayout: QVBoxLayout = None
+    #dxcLayout: QVBoxLayout = None
+    #qsoLayout: QVBoxLayout = None
 
     character_remove_color = "#dd3333"
     character_add_color = "#3333dd"
@@ -55,7 +55,7 @@ class SpidiWindow(QDockWidget):
         self.database.current_contest = self.pref.get("contest", 0)
 
         uic.loadUi(fsutils.APP_DATA_PATH / "spidiwindow.ui", self)
-        self.mscp = SCP(fsutils.APP_DATA_PATH)
+        self.mscp = SCP_DB(fsutils.APP_DATA_PATH)
         self._udpwatch = None
         self.udp_fifo = queue.Queue()
         self.multicast_interface = Multicast(
@@ -71,7 +71,9 @@ class SpidiWindow(QDockWidget):
             cmd = {}
             cmd["cmd"] = "CHANGECALL"
             cmd["station"] = platform.node()
-            cmd["call"] = item
+            callsign = item.split("|")[0].strip()
+            cmd["call"] = callsign
+            #cmd["call"] = item
             self.multicast_interface.send_as_json(cmd)
 
     def setDarkMode(self, dark: bool) -> None:
@@ -166,13 +168,13 @@ class SpidiWindow(QDockWidget):
                 call = json_data.get("call", "")
                 self.call = call
                 self.master_list(call)
-                self.log_list(call)
+                #self.log_list(call)
                 continue
-            if json_data.get("cmd", "") == "CHECKSPOTS":
-                self.populate_layout(self.dxcLayout, [])
-                spots = json_data.get("spots", [])
-                self.telnet_list(spots)
-                continue
+            # if json_data.get("cmd", "") == "CHECKSPOTS":
+            #     self.populate_layout(self.dxcLayout, [])
+            #     spots = json_data.get("spots", [])
+            #     self.telnet_list(spots)
+            #     continue
             if json_data.get("cmd", "") == "NEWDB":
                 ...
                 # self.load_new_db()
@@ -193,8 +195,8 @@ class SpidiWindow(QDockWidget):
         None
         """
         self.populate_layout(self.masterLayout, [])
-        self.populate_layout(self.qsoLayout, [])
-        self.populate_layout(self.dxcLayout, [])
+        #self.populate_layout(self.qsoLayout, [])
+        #self.populate_layout(self.dxcLayout, [])
 
     def master_list(self, call: str) -> None:
         """
@@ -209,47 +211,49 @@ class SpidiWindow(QDockWidget):
         -------
         None
         """
+        logger.debug("==================================================== MIREK call {0}".format(call))
         self.populate_layout(self.masterLayout, [])
         results = self.mscp.super_check(call)
-        self.populate_layout(self.masterLayout, filter(lambda x: "#" not in x, results))
+        logger.debug("===================================================== Return list {0}".format(results))
+        self.populate_layout(self.masterLayout, results)
 
-    def log_list(self, call: str) -> None:
-        """
-        Get log matches to call and display in list.
+    # def log_list(self, call: str) -> None:
+    #     """
+    #     Get log matches to call and display in list.
+    #
+    #     Parameters
+    #     ----------
+    #     call : str
+    #     Call to get matches for
+    #
+    #     Returns
+    #     -------
+    #     None
+    #     """
+    #     self.populate_layout(self.qsoLayout, [])
+    #     if call:
+    #         result = self.database.get_like_calls_and_bands(call)
+    #         self.populate_layout(self.qsoLayout, result)
 
-        Parameters
-        ----------
-        call : str
-        Call to get matches for
-
-        Returns
-        -------
-        None
-        """
-        self.populate_layout(self.qsoLayout, [])
-        if call:
-            result = self.database.get_like_calls_and_bands(call)
-            self.populate_layout(self.qsoLayout, result)
-
-    def telnet_list(self, spots: list) -> None:
-        """
-        Get telnet matches to call and display in list.
-
-        Parameters
-        ----------
-        spots : list
-        List of spots to get matches for
-
-        Returns
-        -------
-        None
-        """
-        self.populate_layout(self.dxcLayout, [])
-        if spots:
-            self.populate_layout(
-                self.dxcLayout,
-                filter(lambda x: x, [x.get("callsign", None) for x in spots]),
-            )
+    # def telnet_list(self, spots: list) -> None:
+    #     """
+    #     Get telnet matches to call and display in list.
+    #
+    #     Parameters
+    #     ----------
+    #     spots : list
+    #     List of spots to get matches for
+    #
+    #     Returns
+    #     -------
+    #     None
+    #     """
+    #     self.populate_layout(self.dxcLayout, [])
+    #     if spots:
+    #         self.populate_layout(
+    #             self.dxcLayout,
+    #             filter(lambda x: x, [x.get("callsign", None) for x in spots]),
+    #         )
 
     def populate_layout(self, layout, call_list) -> None:
         """Apply blackmagic to a layout."""
@@ -262,22 +266,23 @@ class SpidiWindow(QDockWidget):
         for call in call_list:
             if call:
                 if self.call:
-                    label_text = ""
+                    #callsign = call.split("|")[0].strip()
+                    label_text = call
                     diff_score = 0
-                    for tag, i1, i2, j1, j2 in Levenshtein.opcodes(call, self.call):
-                        if tag == "equal":
-                            label_text += call[i1:i2]
-                            continue
-                        elif tag == "replace":
-                            label_text += f"<span style='background-color: {self.character_remove_color};'>{call[i1:i2]}</span>"
-                            diff_score += max((i2 - i1), (j2 - j1)) * (
-                                len(call) + 1 - i2
-                            )
-                        elif tag == "insert" or tag == "delete":
-                            label_text += f"<span style='background-color: {self.character_add_color};'>{call[i1:i2]}</span>"
-                            diff_score += max((i2 - i1), (j2 - j1)) * (len(call) - i2)
-                    if call == self.call:
-                        label_text = f"<span style='background-color: {self.character_match_color};'>{call}</span>"
+                    # for tag, i1, i2, j1, j2 in Levenshtein.opcodes(call, self.call):
+                    #     if tag == "equal":
+                    #         label_text += call[i1:i2]
+                    #         continue
+                    #     elif tag == "replace":
+                    #         label_text += f"<span style='background-color: {self.character_remove_color};'>{call[i1:i2]}</span>"
+                    #         diff_score += max((i2 - i1), (j2 - j1)) * (
+                    #             len(call) + 1 - i2
+                    #         )
+                    #     elif tag == "insert" or tag == "delete":
+                    #         label_text += f"<span style='background-color: {self.character_add_color};'>{call[i1:i2]}</span>"
+                    #         diff_score += max((i2 - i1), (j2 - j1)) * (len(call) - i2)
+                    # if call == self.call:
+                    #     label_text = f"<span style='background-color: {self.character_match_color};'>{call}</span>"
                     call_items.append((diff_score, label_text, call))
 
         call_items = sorted(call_items, key=lambda x: x[0])
@@ -307,5 +312,6 @@ class CallLabel(QLabel):
         self.callback = callback
 
     def mouseReleaseEvent(self, e: QMouseEvent) -> None:
+        logger.debug("==================================================== MIREK fillin callback{0} call{1}".format(self.callback,self.call))
         if self.call and self.callback:
             self.callback(self.call)
