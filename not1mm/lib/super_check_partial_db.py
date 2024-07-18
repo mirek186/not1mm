@@ -32,24 +32,45 @@ class SCP_DB:
         self.conn = sqlite3.connect(Path("{0}/{1}".format(self.app_data_path,"qrz.db")))
         self.cursor = self.conn.cursor()
         #Change default results from tuple to list to speedup the process
-        self.cursor.row_factory = lambda cursor, row: "{0:<13} | {1}".format(row[0],row[1])
+
 
     def super_check(self, acall: str) -> list:
         """
         Performs a supercheck partial on the callsign entered in the field.
         """
         logger.debug("===================================================== Inside super check {0}".format(acall))
-        if len(acall) > 2:
-            self.cursor.execute('SELECT callsign,comments FROM qrz WHERE callsign LIKE "{0}%"'.format(acall))
-            callsign_list = []
-            comments_list = []
-            results = self.cursor.fetchall()
-            #for row in self.cursor.fetchall():
-            #    callsign_list.append(row[0])
-            #    comments_list.append(row[1])
-            #logger.debug("===================================================== Inside super check results {0}".format(callsign_list))
-            #logger.debug("===================================================== Inside super check comments {0}".format(comments_list))
-            #return (callsign_list, comments_list)
-            return results
+        if "_" in acall and not acall.endswith("_") and len(acall) > 3:
+            self.cursor.row_factory = sqlite3.Row
+            self.cursor.execute('SELECT count(*) FROM qrz WHERE callsign LIKE "{0}%"'.format(acall))
+            cnt = self.cursor.fetchall()[0][0]
+            logger.debug("COUNT {0}".format(cnt))
+            if cnt < 500:
+                self.cursor.row_factory = lambda cursor, row: "{0:<13} | {1}".format(row[0], row[1])
+                self.cursor.execute('SELECT callsign,comments FROM qrz WHERE callsign LIKE "{0}%"'.format(acall))
+            else:
+                return ["More than 500 rows returned."]
+        elif len(acall) > 3:
+            self.cursor.row_factory = sqlite3.Row
+            self.cursor.execute('SELECT count(*) FROM qrz WHERE callsign LIKE "{0}%"'.format(acall))
+            cnt = self.cursor.fetchall()[0][0]
+            logger.debug("COUNT {0}".format(cnt))
+            if cnt < 500:
+                self.cursor.row_factory = lambda cursor, row: "{0:<13} | {1}".format(row[0], row[1])
+                self.cursor.execute('SELECT callsign,comments FROM qrz WHERE callsign LIKE "{0}%"'.format(acall))
+            else:
+                return ["More than 500 rows returned."]
+        else:
+            return []
+
+        callsign_list = []
+        comments_list = []
+        results = self.cursor.fetchall()
+        #for row in self.cursor.fetchall():
+        #    callsign_list.append(row[0])
+        #    comments_list.append(row[1])
+        #logger.debug("===================================================== Inside super check results {0}".format(callsign_list))
+        #logger.debug("===================================================== Inside super check comments {0}".format(comments_list))
+        #return (callsign_list, comments_list)
+        return results
         #return ([],[])
-        return []
+        #return []
