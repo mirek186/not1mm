@@ -46,7 +46,10 @@ class SCP_DB:
             logger.debug("COUNT {0}".format(cnt))
             if cnt < 500:
                 self.cursor.row_factory = lambda cursor, row: "{0:<13} | {1}".format(row[0], row[1])
-                self.cursor.execute('SELECT callsign,comments FROM qrz WHERE callsign LIKE "{0}%"'.format(acall))
+                if acall.endswith("$"):
+                    self.cursor.execute('SELECT callsign,comments FROM qrz WHERE callsign LIKE "{0}"'.format(acall[:-1]))
+                else:
+                    self.cursor.execute('SELECT callsign,comments FROM qrz WHERE callsign LIKE "{0}%"'.format(acall))
             else:
                 return ["More than 500 rows returned."]
         elif len(acall) > 3:
