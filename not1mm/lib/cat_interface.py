@@ -2,6 +2,20 @@
 K6GTE, CAT interface abstraction
 Email: michael.bridak@gmail.com
 GPL V3
+
+rig.cwio_set_wpm          n:i  set cwio WPM
+rig.cwio_text             i:s  send text via cwio interface
+rig.cwio_send             n:i  cwio transmit 1/0 (on/off)
+command lines to test the CW API via XMLRPC
+
+Setting WPM
+curl -d "<?xml version='1.0'?><methodCall><methodName>rig.cwio_set_wpm</methodName><params><param><value><i4>28</i4></value></param></params></methodCall>" http://localhost:12345 
+
+Setting the text to send
+curl -d "<?xml version='1.0'?><methodCall><methodName>rig.cwio_text</methodName><params><param><value><string>test test test</string></value></param></params></methodCall>" http://localhost:12345
+
+Enable send
+curl -d "<?xml version='1.0'?><methodCall><methodName>rig.cwio_send</methodName><params><param><value><i4>1</i4></value></param></params></methodCall>" http://localhost:12345
 """
 
 import logging
@@ -94,7 +108,7 @@ class CAT:
         """..."""
         logger.debug(f"{texttosend=} {self.interface=}")
         if self.interface == "flrig":
-            ...
+            self.sendcwxmlrpc(texttosend)
             return
         if self.interface == "rigctld":
             self.sendcwrigctl(texttosend)
@@ -117,6 +131,23 @@ class CAT:
 
     def sendcwxmlrpc(self, texttosend):
         """..."""
+        print(f"{texttosend=}")
+        try:
+            self.online = True
+            self.server.rig.cwio_send(1)
+            self.server.rig.cwio_text(texttosend)
+            return
+        except (
+            ConnectionRefusedError,
+            xmlrpc.client.Fault,
+            http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
+        ) as exception:
+            self.online = False
+            print("sendcwxmlrpc: %s", f"{exception}")
+            # logger.debug("sendcwxmlrpc: %s", f"{exception}")
+        return False
 
     def get_vfo(self) -> str:
         """Poll the radio for current vfo using the interface"""
@@ -138,6 +169,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("getvfo_flrig: %s", f"{exception}")
@@ -177,6 +210,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("%s", f"{exception}")
@@ -220,6 +255,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("getbw_flrig: %s", f"{exception}")
@@ -261,6 +298,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("getpower_flrig: %s", f"{exception}")
@@ -295,6 +334,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("%s", f"{exception}")
@@ -318,10 +359,13 @@ class CAT:
 
     def set_vfo(self, freq: str) -> bool:
         """Sets the radios vfo"""
-        if self.interface == "flrig":
-            return self.__setvfo_flrig(freq)
-        if self.interface == "rigctld":
-            return self.__setvfo_rigctld(freq)
+        try:
+            if self.interface == "flrig":
+                return self.__setvfo_flrig(freq)
+            if self.interface == "rigctld":
+                return self.__setvfo_rigctld(freq)
+        except ValueError:
+            ...
         return False
 
     def __setvfo_flrig(self, freq: str) -> bool:
@@ -333,6 +377,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("setvfo_flrig: %s", f"{exception}")
@@ -371,6 +417,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("setmode_flrig: %s", f"{exception}")
@@ -408,6 +456,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("setpower_flrig: %s", f"{exception}")
@@ -462,6 +512,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("%s", f"{exception}")
@@ -496,6 +548,8 @@ class CAT:
             ConnectionRefusedError,
             xmlrpc.client.Fault,
             http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
         ) as exception:
             self.online = False
             logger.debug("%s", f"{exception}")

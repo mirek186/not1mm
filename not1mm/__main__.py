@@ -39,7 +39,7 @@ except OSError as exception:
     print("portaudio is not installed")
     sd = None
 from PyQt6 import QtCore, QtGui, QtWidgets, uic
-from PyQt6.QtCore import QDir, Qt, QThread
+from PyQt6.QtCore import QDir, Qt, QThread, QSettings
 from PyQt6.QtGui import QFontDatabase, QColorConstants, QPalette, QColor
 from PyQt6.QtWidgets import QFileDialog
 
@@ -121,10 +121,6 @@ class MainWindow(QtWidgets.QMainWindow):
         "cw_macros": True,
         "bands_modes": True,
         "bands": ["160", "80", "40", "20", "15", "10"],
-        "window_height": 200,
-        "window_width": 600,
-        "window_x": 120,
-        "window_y": 120,
         "current_database": "ham.db",
         "contest": "",
         "multicast_group": "239.1.1.1",
@@ -204,6 +200,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         logger.info("MainWindow: __init__")
+
+        self.dock_loc = {
+            "Top": Qt.DockWidgetArea.TopDockWidgetArea,
+            "Right": Qt.DockWidgetArea.RightDockWidgetArea,
+            "Left": Qt.DockWidgetArea.LeftDockWidgetArea,
+            "Bottom": Qt.DockWidgetArea.BottomDockWidgetArea,
+        }
+
         self.setCorner(Qt.Corner.TopRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
         self.setCorner(
             Qt.Corner.BottomRightCorner, Qt.DockWidgetArea.RightDockWidgetArea
@@ -221,6 +225,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.mscp = SCP(fsutils.APP_DATA_PATH)
         self.next_field = self.other_2
         self.dupe_indicator.hide()
+
         self.cw_speed.valueChanged.connect(self.cwspeed_spinbox_changed)
 
         self.cw_entry.textChanged.connect(self.handle_text_change)
@@ -519,30 +524,43 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.pref.get("contest"):
             self.load_contest()
         self.read_cw_macros()
+
+        self.log_window = LogWindow()
+        self.log_window.setObjectName("log-window")
+        self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, self.log_window)
+        self.log_window.hide()
+
+        self.bandmap_window = BandMapWindow()
+        self.bandmap_window.setObjectName("bandmap-window")
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.bandmap_window)
+        self.bandmap_window.hide()
+
+        self.check_window = CheckWindow()
+        self.check_window.setObjectName("check-window")
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.check_window)
+        self.check_window.hide()
+
+        self.vfo_window = VfoWindow()
+        self.vfo_window.setObjectName("vfo-window")
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.vfo_window)
+        self.vfo_window.hide()
+
+        self.settings = QSettings("K6GTE", "not1mm")
+        if self.settings.value("windowState") is not None:
+            self.restoreState(self.settings.value("windowState"))
+        if self.settings.value("geometry") is not None:
+            self.restoreGeometry(self.settings.value("geometry"))
+
         self.actionLog_Window.setChecked(self.pref.get("logwindow", False))
-        if self.log_window:
-            self.log_window.close()
         if self.actionLog_Window.isChecked():
-            self.log_window = LogWindow()
-            self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, self.log_window)
             self.log_window.show()
 
         self.actionBandmap.setChecked(self.pref.get("bandmapwindow", False))
-        if self.bandmap_window:
-            self.bandmap_window.close()
         if self.actionBandmap.isChecked():
-            self.bandmap_window = BandMapWindow()
-            self.addDockWidget(
-                Qt.DockWidgetArea.LeftDockWidgetArea, self.bandmap_window
-            )
             self.bandmap_window.show()
 
         self.actionCheck_Window.setChecked(self.pref.get("checkwindow", False))
-        if self.check_window:
-            self.check_window.close()
         if self.actionCheck_Window.isChecked():
-            self.check_window = CheckWindow()
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.check_window)
             self.check_window.show()
 
         self.action_qrz_lookup_Window.setChecked(self.pref.get("qrz_lookup_window", False))
@@ -554,11 +572,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.qrz_lookup_window.show()
 
         self.actionVFO.setChecked(self.pref.get("vfowindow", False))
-        if self.vfo_window:
-            self.vfo_window.close()
         if self.actionVFO.isChecked():
-            self.vfo_window = VfoWindow()
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.vfo_window)
             self.vfo_window.show()
 
         if not DEBUG_ENABLED:
@@ -1435,36 +1449,28 @@ class MainWindow(QtWidgets.QMainWindow):
         """Launch the log window"""
         self.pref["logwindow"] = self.actionLog_Window.isChecked()
         self.write_preference()
-        if self.log_window:
-            self.log_window.close()
         if self.actionLog_Window.isChecked():
-            self.log_window = LogWindow()
-            self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, self.log_window)
             self.log_window.show()
+        else:
+            self.log_window.hide()
 
     def launch_bandmap_window(self) -> None:
         """Launch the bandmap window"""
         self.pref["bandmapwindow"] = self.actionBandmap.isChecked()
         self.write_preference()
-        if self.bandmap_window:
-            self.bandmap_window.close()
         if self.actionBandmap.isChecked():
-            self.bandmap_window = BandMapWindow()
-            self.addDockWidget(
-                Qt.DockWidgetArea.LeftDockWidgetArea, self.bandmap_window
-            )
             self.bandmap_window.show()
+        else:
+            self.bandmap_window.hide()
 
     def launch_check_window(self) -> None:
         """Launch the check window"""
         self.pref["checkwindow"] = self.actionCheck_Window.isChecked()
         self.write_preference()
-        if self.check_window:
-            self.check_window.close()
         if self.actionCheck_Window.isChecked():
-            self.check_window = CheckWindow()
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.check_window)
             self.check_window.show()
+        else:
+            self.check_window.hide()
 
     def launch_qrz_lookup_window(self) -> None:
         """Launch the qrz_lookup window"""
@@ -1481,12 +1487,10 @@ class MainWindow(QtWidgets.QMainWindow):
         """Launch the VFO window"""
         self.pref["vfowindow"] = self.actionVFO.isChecked()
         self.write_preference()
-        if self.vfo_window:
-            self.vfo_window.close()
         if self.actionVFO.isChecked():
-            self.vfo_window = VfoWindow()
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.vfo_window)
             self.vfo_window.show()
+        else:
+            self.vfo_window.hide()
 
     def clear_band_indicators(self) -> None:
         """
@@ -1544,14 +1548,14 @@ class MainWindow(QtWidgets.QMainWindow):
         None
         """
 
+        self.settings.setValue("geometry", self.saveGeometry())
+        self.settings.setValue("windowState", self.saveState())
+        self.settings.sync()
+
         cmd = {}
         cmd["cmd"] = "HALT"
         cmd["station"] = platform.node()
         self.multicast_interface.send_as_json(cmd)
-        self.pref["window_width"] = self.size().width()
-        self.pref["window_height"] = self.size().height()
-        self.pref["window_x"] = self.pos().x()
-        self.pref["window_y"] = self.pos().y()
         self.write_preference()
 
     def cty_lookup(self, callsign: str) -> list:
@@ -2886,7 +2890,7 @@ class MainWindow(QtWidgets.QMainWindow):
         None
         """
 
-        if mode == "CW":
+        if mode in ("CW", "CW-U", "CW-L"):
             self.setmode("CW")
             self.radio_state["mode"] = "CW"
             if self.rig_control:
@@ -3054,7 +3058,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setmode(self, mode: str) -> None:
         """Call when the mode changes."""
-        if mode == "CW":
+        if mode in ("CW", "CW-U", "CW-L"):
             if self.current_mode != "CW":
                 self.current_mode = "CW"
                 self.sent.setText("599")
@@ -3071,7 +3075,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.receive.setText("59")
                 self.read_cw_macros()
             return
-        if mode == "RTTY":
+        if mode in ("RTTY", "DIGI-U", "DIGI-L"):
             if self.current_mode != "RTTY":
                 self.current_mode = "RTTY"
                 self.sent.setText("59")
@@ -3184,7 +3188,7 @@ class MainWindow(QtWidgets.QMainWindow):
             info_dirty = True
             self.radio_state["bw"] = bw
 
-        if mode == "CW":
+        if mode in ("CW", "CW-U", "CW-L"):
             self.setmode(mode)
         if mode == "LSB" or mode == "USB":
             self.setmode("SSB")
@@ -3192,26 +3196,29 @@ class MainWindow(QtWidgets.QMainWindow):
             self.setmode("RTTY")
 
         if info_dirty:
-            logger.debug("VFO: %s  MODE: %s BW: %s", vfo, mode, bw)
-            self.set_window_title()
-            cmd = {}
-            cmd["cmd"] = "RADIO_STATE"
-            cmd["station"] = platform.node()
-            cmd["band"] = band
-            cmd["vfoa"] = vfo
-            cmd["mode"] = mode
-            cmd["bw"] = bw
-            self.multicast_interface.send_as_json(cmd)
-            if self.n1mm:
-                if self.n1mm.send_radio_packets:
-                    self.n1mm.radio_info["Freq"] = vfo[:-1]
-                    self.n1mm.radio_info["TXFreq"] = vfo[:-1]
-                    self.n1mm.radio_info["Mode"] = mode
-                    self.n1mm.radio_info["OpCall"] = self.current_op
-                    self.n1mm.radio_info["IsRunning"] = str(
-                        self.pref.get("run_state", False)
-                    )
-                    self.n1mm.send_radio()
+            try:
+                logger.debug("VFO: %s  MODE: %s BW: %s", vfo, mode, bw)
+                self.set_window_title()
+                cmd = {}
+                cmd["cmd"] = "RADIO_STATE"
+                cmd["station"] = platform.node()
+                cmd["band"] = band
+                cmd["vfoa"] = vfo
+                cmd["mode"] = mode
+                cmd["bw"] = bw
+                self.multicast_interface.send_as_json(cmd)
+                if self.n1mm:
+                    if self.n1mm.send_radio_packets:
+                        self.n1mm.radio_info["Freq"] = vfo[:-1]
+                        self.n1mm.radio_info["TXFreq"] = vfo[:-1]
+                        self.n1mm.radio_info["Mode"] = mode
+                        self.n1mm.radio_info["OpCall"] = self.current_op
+                        self.n1mm.radio_info["IsRunning"] = str(
+                            self.pref.get("run_state", False)
+                        )
+                        self.n1mm.send_radio()
+            except TypeError as err:
+                logger.debug(f"{err=} {vfo=} {the_dict=}")
 
     def edit_cw_macros(self) -> None:
         """
@@ -3435,11 +3442,11 @@ app = QtWidgets.QApplication(sys.argv)
 families = load_fonts_from_dir(os.fspath(fsutils.APP_DATA_PATH))
 logger.info(f"font families {families}")
 window = MainWindow()
-height = window.pref.get("window_height", 300)
-width = window.pref.get("window_width", 700)
-x = window.pref.get("window_x", -1)
-y = window.pref.get("window_y", -1)
-window.setGeometry(x, y, width, height)
+# height = window.pref.get("window_height", 300)
+# width = window.pref.get("window_width", 700)
+# x = window.pref.get("window_x", -1)
+# y = window.pref.get("window_y", -1)
+# window.setGeometry(x, y, width, height)
 window.callsign.setFocus()
 window.show()
 # timer = QtCore.QTimer()
