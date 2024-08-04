@@ -545,6 +545,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.vfo_window)
         self.vfo_window.hide()
 
+        self.qrz_lookup_window = QRZLookupWindow()
+        self.qrz_lookup_window.setObjectName("qrz-lookup-window")
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.qrz_lookup_window)
+        self.qrz_lookup_window.hide()
+
         self.settings = QSettings("K6GTE", "not1mm")
         if self.settings.value("windowState") is not None:
             self.restoreState(self.settings.value("windowState"))
@@ -564,11 +569,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.check_window.show()
 
         self.action_qrz_lookup_Window.setChecked(self.pref.get("qrz_lookup_window", False))
-        if self.qrz_lookup_window:
-            self.qrz_lookup_window.close()
+        #if self.qrz_lookup_window:
+        #    self.qrz_lookup_window.close()
         if self.action_qrz_lookup_Window.isChecked():
-            self.qrz_lookup_window = QRZLookupWindow()
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.qrz_lookup_window)
             self.qrz_lookup_window.show()
 
         self.actionVFO.setChecked(self.pref.get("vfowindow", False))
