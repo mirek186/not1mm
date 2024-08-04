@@ -114,7 +114,7 @@ class CAT:
             self.sendcwrigctl(texttosend)
 
     def sendcwrigctl(self, texttosend):
-        """..."""
+        """Send text via rigctld"""
         if self.rigctrlsocket:
             try:
                 self.online = True
@@ -130,11 +130,10 @@ class CAT:
         return False
 
     def sendcwxmlrpc(self, texttosend):
-        """..."""
-        print(f"{texttosend=}")
+        """Add text to flrig's cw send buffer."""
+        logger.debug(f"{texttosend=}")
         try:
             self.online = True
-            self.server.rig.cwio_send(1)
             self.server.rig.cwio_text(texttosend)
             return
         except (
@@ -145,9 +144,44 @@ class CAT:
             http.client.ResponseNotReady,
         ) as exception:
             self.online = False
-            print("sendcwxmlrpc: %s", f"{exception}")
-            # logger.debug("sendcwxmlrpc: %s", f"{exception}")
+            logger.debug("%s", f"{exception}")
         return False
+
+    def set_flrig_cw_send(self, send: bool) -> None:
+        """Turn on flrig cw keyer send flag."""
+        if self.interface == "rigctld":
+            return
+        try:
+            self.online = True
+            self.server.rig.cwio_send(int(send))
+        except (
+            ConnectionRefusedError,
+            xmlrpc.client.Fault,
+            http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
+            ValueError,
+        ) as exception:
+            self.online = False
+            logger.debug("%s", f"{exception}")
+
+    def set_flrig_cw_speed(self, speed):
+        """Set flrig's CW send speed"""
+        if self.interface == "rigctld":
+            return
+        try:
+            self.online = True
+            self.server.rig.cwio_set_wpm(int(speed))
+        except (
+            ConnectionRefusedError,
+            xmlrpc.client.Fault,
+            http.client.BadStatusLine,
+            http.client.CannotSendRequest,
+            http.client.ResponseNotReady,
+            ValueError,
+        ) as exception:
+            self.online = False
+            logger.debug("%s", f"{exception}")
 
     def get_vfo(self) -> str:
         """Poll the radio for current vfo using the interface"""

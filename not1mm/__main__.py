@@ -575,6 +575,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.actionVFO.isChecked():
             self.vfo_window.show()
 
+        self.cwspeed_spinbox_changed()
+
         if not DEBUG_ENABLED:
             if VersionTest(__version__).test():
                 self.show_message_box(
@@ -1275,6 +1277,12 @@ class MainWindow(QtWidgets.QMainWindow):
                     else:
                         self.cw_speed.hide()
 
+                if hasattr(self.contest, "ft8_handler"):
+                    self.contest.set_self(self)
+                    self.ft8.set_callback(self.contest.ft8_handler)
+                else:
+                    self.ft8.set_callback(None)
+
                 self.clearinputs()
                 cmd = {}
                 cmd["cmd"] = "NEWDB"
@@ -1604,6 +1612,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.cw.sendcw(f"\x1b2{self.cw.speed}")
         if self.cw.servertype == 2:
             self.cw.set_winkeyer_speed(self.cw_speed.value())
+        if self.rig_control:
+            if self.pref.get("cwtype") == 3 and self.rig_control is not None:
+                if self.rig_control.interface == "flrig":
+                    self.rig_control.cat.set_flrig_cw_speed(self.cw_speed.value())
 
     def keyPressEvent(self, event) -> None:  # pylint: disable=invalid-name
         """
@@ -1677,6 +1689,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 if self.cw.servertype == 1:
                     self.cw.sendcw("\x1b4")
                     return
+            if self.rig_control:
+                if self.rig_control.online:
+                    if self.pref.get("cwtype") == 3 and self.rig_control is not None:
+                        if self.rig_control.interface == "flrig":
+                            self.rig_control.cat.set_flrig_cw_send(False)
+                            self.rig_control.cat.set_flrig_cw_send(True)
         if event.key() == Qt.Key.Key_Up:
             cmd = {}
             cmd["cmd"] = "PREVSPOT"
@@ -2237,14 +2255,22 @@ class MainWindow(QtWidgets.QMainWindow):
         if next_serial == "None":
             next_serial = "1"
         macro = macro.upper()
-        macro = macro.replace("#", next_serial)
+        if self.radio_state.get("mode") == "CW":
+            macro = macro.replace("#", next_serial.rjust(3, "T"))
+        else:
+            macro = macro.replace("#", next_serial)
         macro = macro.replace("{MYCALL}", self.station.get("Call", ""))
         macro = macro.replace("{HISCALL}", self.callsign.text())
         if self.radio_state.get("mode") == "CW":
             macro = macro.replace("{SNT}", self.sent.text().replace("9", "n"))
         else:
             macro = macro.replace("{SNT}", self.sent.text())
-        macro = macro.replace("{SENTNR}", self.other_1.text())
+        if self.radio_state.get("mode") == "CW":
+            macro = macro.replace(
+                "{SENTNR}", self.other_1.text().lstrip("0").rjust(3, "T")
+            )
+        else:
+            macro = macro.replace("{SENTNR}", self.other_1.text())
         macro = macro.replace(
             "{EXCH}", self.contest_settings.get("SentExchange", "xxx")
         )
@@ -2890,12 +2916,16 @@ class MainWindow(QtWidgets.QMainWindow):
         None
         """
 
-        if mode in ("CW", "CW-U", "CW-L"):
+        if mode in ("CW", "CW-U", "CW-L", "CWR"):
             self.setmode("CW")
             self.radio_state["mode"] = "CW"
             if self.rig_control:
                 if self.rig_control.online:
                     self.rig_control.set_mode("CW")
+                    if self.pref.get("cwtype") == 3 and self.rig_control is not None:
+                        if self.rig_control.interface == "flrig":
+                            self.cwspeed_spinbox_changed()
+                            self.rig_control.cat.set_flrig_cw_send(True)
             band = getband(str(self.radio_state.get("vfoa", "0.0")))
             self.set_band_indicator(band)
             self.set_window_title()
@@ -3058,7 +3088,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setmode(self, mode: str) -> None:
         """Call when the mode changes."""
-        if mode in ("CW", "CW-U", "CW-L"):
+        if mode in ("CW", "CW-U", "CW-L", "CWR"):
             if self.current_mode != "CW":
                 self.current_mode = "CW"
                 self.sent.setText("599")
@@ -3188,7 +3218,7 @@ class MainWindow(QtWidgets.QMainWindow):
             info_dirty = True
             self.radio_state["bw"] = bw
 
-        if mode in ("CW", "CW-U", "CW-L"):
+        if mode in ("CW", "CW-U", "CW-L", "CWR"):
             self.setmode(mode)
         if mode == "LSB" or mode == "USB":
             self.setmode("SSB")
@@ -3418,7 +3448,6 @@ def run() -> None:
         f"Resolved OS file system paths: MODULE_PATH {fsutils.MODULE_PATH}, USER_DATA_PATH {fsutils.USER_DATA_PATH}, CONFIG_PATH {fsutils.CONFIG_PATH}"
     )
     install_icons()
-    # timer.start(250)
     sys.exit(app.exec())
 
 
@@ -3442,15 +3471,9 @@ app = QtWidgets.QApplication(sys.argv)
 families = load_fonts_from_dir(os.fspath(fsutils.APP_DATA_PATH))
 logger.info(f"font families {families}")
 window = MainWindow()
-# height = window.pref.get("window_height", 300)
-# width = window.pref.get("window_width", 700)
-# x = window.pref.get("window_x", -1)
-# y = window.pref.get("window_y", -1)
-# window.setGeometry(x, y, width, height)
 window.callsign.setFocus()
 window.show()
-# timer = QtCore.QTimer()
-# timer.timeout.connect(window.poll_radio)
+
 
 if __name__ == "__main__":
     run()
