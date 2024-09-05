@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from PyQt6 import QtWidgets
 
+from not1mm.lib.ham_utility import get_logged_band
 from not1mm.lib.plugin_common import gen_adif, get_points
 from not1mm.lib.version import __version__
 
@@ -114,7 +115,7 @@ def points(self):
     _mode = self.contact.get("Mode", "")
     if _mode in "SSB, USB, LSB, FM, AM":
         return 1
-    if _mode in "CW, RTTY":
+    if _mode in "CW, RTTY, FT8":
         return 2
     return 0
 
@@ -295,8 +296,10 @@ def cabrillo(self):
             for contact in log:
                 the_date_and_time = contact.get("TS", "")
                 themode = contact.get("Mode", "")
-                if themode == "LSB" or themode == "USB":
+                if themode in ("LSB", "USB"):
                     themode = "PH"
+                if themode in ("FT8", "FT4"):
+                    themode = "DG"
                 frequency = str(int(contact.get("Freq", "0"))).rjust(5)
 
                 loggeddate = the_date_and_time[:10]
@@ -330,7 +333,7 @@ def set_self(the_outie):
 
 def ft8_handler(the_packet: dict):
     """Process FT8 QSO packets
-
+    FT8
     {
         'CALL': 'KE0OG',
         'GRIDSQUARE': 'DM10AT',
@@ -350,19 +353,50 @@ def ft8_handler(the_packet: dict):
         'CLASS': '1D',
         'ARRL_SECT': 'UT'
     }
+    FlDigi
+    {
+            'FREQ': '7.029500',
+            'CALL': 'DL2DSL',
+            'MODE': 'RTTY',
+            'NAME': 'BOB',
+            'QSO_DATE': '20240904',
+            'QSO_DATE_OFF': '20240904',
+            'TIME_OFF': '212825',
+            'TIME_ON': '212800',
+            'RST_RCVD': '599',
+            'RST_SENT': '599',
+            'BAND': '40M',
+            'COUNTRY': 'FED. REP. OF GERMANY',
+            'CQZ': '14',
+            'STX': '000',
+            'STX_STRING': '1D ORG',
+            'CLASS': '1D',
+            'ARRL_SECT': 'DX',
+            'TX_PWR': '0',
+            'OPERATOR': 'K6GTE',
+            'STATION_CALLSIGN': 'K6GTE',
+            'MY_GRIDSQUARE': 'DM13AT',
+            'MY_CITY': 'ANAHEIM, CA',
+            'MY_STATE': 'CA'
+        }
 
     """
-    print(f"{the_packet=}")
 
     if ALTEREGO is not None:
-
         ALTEREGO.callsign.setText(the_packet.get("CALL"))
         ALTEREGO.contact["Call"] = the_packet.get("CALL", "")
         ALTEREGO.contact["SNT"] = ALTEREGO.sent.text()
         ALTEREGO.contact["RCV"] = ALTEREGO.receive.text()
         ALTEREGO.contact["Exchange1"] = the_packet.get("CLASS", "ERR")
         ALTEREGO.contact["Sect"] = the_packet.get("ARRL_SECT", "ERR")
-        ALTEREGO.contact["Mode"] = "FT8"
+        ALTEREGO.contact["Mode"] = the_packet.get("MODE", "ERR")
+        ALTEREGO.contact["Freq"] = round(float(the_packet.get("FREQ", "0.0")) * 1000, 2)
+        ALTEREGO.contact["QSXFreq"] = round(
+            float(the_packet.get("FREQ", "0.0")) * 1000, 2
+        )
+        ALTEREGO.contact["Band"] = get_logged_band(
+            str(int(float(the_packet.get("FREQ", "0.0")) * 1000000))
+        )
         ALTEREGO.other_1.setText(the_packet.get("CLASS", "ERR"))
         ALTEREGO.other_2.setText(the_packet.get("ARRL_SECT", "ERR"))
-        print(f"\n{ALTEREGO.contact=}\n")
+        ALTEREGO.save_contact()

@@ -38,6 +38,7 @@
       - [Fedora 38 \& 39](#fedora-38--39)
       - [Fedora 40](#fedora-40)
       - [Manjaro](#manjaro)
+      - [Mint](#mint)
     - [Python, PyPI, pip and pipx](#python-pypi-pip-and-pipx)
       - [Bootstrapping pipx](#bootstrapping-pipx)
       - [Installing with pipx](#installing-with-pipx)
@@ -68,6 +69,7 @@
     - [Cluster](#cluster)
     - [N1MM Packets](#n1mm-packets)
     - [Bands](#bands)
+  - [Logging WSJT-X FT8/FT4 contacts](#logging-wsjt-x-ft8ft4-contacts)
   - [Sending CW](#sending-cw)
   - [Editing macro keys](#editing-macro-keys)
     - [Macro substitutions](#macro-substitutions)
@@ -178,10 +180,12 @@ generated, 'cause I'm lazy, list of those who've submitted PR's.
 - CQ World Wide CW
 - CQ World Wide SSB
 - CWOps CWT
+- Helvetia
 - IARU HF
 - ICWC MST
 - Japan International DX CW
 - Japan International DX SSB
+- K1USN Slow Speed Test
 - NAQP CW
 - NAQP SSB
 - Phone Weekly Test
@@ -191,14 +195,7 @@ generated, 'cause I'm lazy, list of those who've submitted PR's.
 
 ## Recent Changes
 
-- [24-7-31] Serial number leading Zeros sent as T in CW.
-- [24-7-29] Add flrig cw speed change via onscreen widget.
-- [24-7-28] Second try at flrig CW.
-- [24-7-25-1] Have VFO dock widget handle disconnect/reconnect events of the USB VFO knob more gracefully.
-- [24-7-25] Updated application categories for the desktop file.
-- [24-7-25] Maybe let flrig send CW... Probably not.
-- [24-7-19] Use Qt's QSettings to store window and dockwidgets states.
-- [24-7-13] Trap Exceptions in flrig xmlrpc client.
+- [24-9-3] Added WSJT-X FT8 mode contacts to ARRL Field Day.
 
 See [CHANGELOG.md](CHANGELOG.md) for prior changes.
 
@@ -213,8 +210,14 @@ clue me into the black magic needed to get it to work.
 
 ### Prerequisites
 
-not1mm requires Python 3.9+, PyQt6 and libportaudio2. You should install these
-through your distribution's package manager before continuing.
+not1mm requires:
+
+- Python 3.9+
+- PyQt6
+- libportaudio2
+- libxcb-cursor0 (maybe... Depends on the distro)
+
+You should install these through your distribution's package manager before continuing.
 
 ### Common installation recipes for Ubuntu and Fedora
 
@@ -289,6 +292,20 @@ pip install not1mm
 
 ```bash
 pamac build not1mm-git 
+```
+
+</details>
+
+<details>
+
+<summary><b>Mint 22</b></summary>
+
+#### Mint
+
+```bash
+sudo apt install python3-pip pipx libxcb-cursor0 
+pipx install not1mm
+pipx ensurepath
 ```
 
 </details>
@@ -402,7 +419,9 @@ qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it 
 This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
 ```
 
-To avoid this you can export an environment variable and launch the app like this:
+You can use your package manager to load libxcb-cursor0.
+
+If that's not an option, you can export an environment variable and launch the app like this:
 
 `mbridak@vm:~$ export QT_QPA_PLATFORM=wayland; not1mm`
 
@@ -552,6 +571,13 @@ You can define which bands appear in the main window. Those with checkmarks will
 appear. Those without will not.
 
 ![Bands Configuration Screen](https://github.com/mbridak/not1mm/raw/master/pic/configure_bands.png)
+
+## Logging WSJT-X FT8/FT4 contacts
+
+**Currently only working for ARRL Field Day.**
+
+not1mm listens for WSJT-X UDP traffic on the default localhost:2237. No setup is
+needed to be done on not1mm's side.
 
 ## Sending CW
 

@@ -1,24 +1,36 @@
-"""K1USN Slow Speed Test"""
+"""
+Helvetica
+-------------------------------------------------
+Status:	Active
+Geographic Focus:	Switzerland
+Participation:	Worldwide
+Mode:	CW, SSB, Digital
+Bands:	160, 80, 40, 20, 15, 10m
+Classes:	Single Op (CW/SSB) High
+            Single Op Mixed (QRP/Low/High)
+            Multi-Op (CW/SSB/Mixed) High
+            SWL
+Max operating hours:	18 with a maximum of two rest periods of any length
+Max power:	HP: >100 watts
+LP: 100 watts
+QRP: 5 watts (CW/Digital) or 10 watts (SSB)
+Exchange:	HB: RS(T) + 2-letter canton
+            non-HB: RS(T) + Serial No.
+Work stations:	Once per band per mode
 
-# Geographic Focus:	Worldwide
-# Participation:	Worldwide
-# Mode:	CW
-# Bands:	160, 80, 40, 20, 15, 10m
-# Classes:	Single Op (QRP/Low/High)
-# Max power:	HP: >100 watts
-# LP: 100 watts
-# QRP: 5 watts
-# Exchange:	Maximum 20 wpm
-# Name + (state/province/country)
-# Work stations:	Once per band
-# QSO Points:	1 point per QSO (starting with Jan 4 contest)
-# Multipliers:	Each state/province/country once per band
-# W/VE do not count as country mults (starting with Jan 4 contest)
-# Score Calculation:	Total score = total QSO points x total mults
-# Submit logs by:	2359Z May 26, 2024
-# Post log summary at:	http://www.3830scores.com
-# Mail logs to:	(none)
-# Find rules at:	http://www.k1usn.com/sst.html
+Scoring:
+Contact with a station in Switzerland: 10 points
+Contact with a station within the same continent: 1 point
+Contact with a station outside the operator’s continent: 3 points
+
+Multipliers: Canton and DXCC country (including Switzerland) per band: 1 point
+
+Score Calculation:	Total score = total QSO points x total mults
+E-mail logs to:	contest[at]uska[dot]ch
+Mail logs to:	(none)
+Find rules at:	https://www.uska.ch/events/uska-helvetia-contest-concours-helvetia-hf/
+Cabrillo name:	HELVETIA
+"""
 
 import datetime
 import logging
@@ -29,30 +41,65 @@ from pathlib import Path
 from PyQt6 import QtWidgets
 
 from not1mm.lib.plugin_common import gen_adif, get_points
+
 from not1mm.lib.version import __version__
 
 logger = logging.getLogger(__name__)
 
-EXCHANGE_HINT = "Name + SPC"
+EXCHANGE_HINT = "Canton or #"
 
-name = "K1USN SLOW SPEED TEST"
-cabrillo_name = "K1USN-SST"
-mode = "CW"  # CW SSB BOTH RTTY
-# columns = [0, 1, 2, 3, 4, 10, 11, 14, 15]
+name = "HELVETIA"
+cabrillo_name = "HELVETIA"
+mode = "BOTH"  # CW SSB BOTH RTTY
+
 columns = [
     "YYYY-MM-DD HH:MM:SS",
     "Call",
     "Freq",
-    "Name",
-    "Sect",
+    "Mode",
+    "Snt",
+    "Rcv",
+    "SentNr",
+    "RcvNr",
     "M1",
+    "M2",
     "PTS",
 ]
 
 advance_on_space = [True, True, True, True, True]
 
 # 1 once per contest, 2 work each band, 3 each band/mode, 4 no dupe checking
-dupe_type = 2
+dupe_type = 3
+
+cantons = [
+    "AG",
+    "AI",
+    "AR",
+    "BE",
+    "BL",
+    "BS",
+    "CH",
+    "FR",
+    "GE",
+    "GL",
+    "GR",
+    "JU",
+    "LU",
+    "NE",
+    "NW",
+    "OW",
+    "SG",
+    "SH",
+    "SO",
+    "SZ",
+    "TG",
+    "TI",
+    "UR",
+    "VD",
+    "VS",
+    "ZG",
+    "ZH",
+]
 
 
 def init_contest(self):
@@ -60,21 +107,21 @@ def init_contest(self):
     set_tab_next(self)
     set_tab_prev(self)
     interface(self)
-    self.next_field = self.other_1
+    self.next_field = self.other_2
 
 
 def interface(self):
     """Setup user interface"""
-    self.field1.hide()
-    self.field2.hide()
+    self.field1.show()
+    self.field2.show()
     self.field3.show()
     self.field4.show()
-    namefield = self.field3.findChild(QtWidgets.QLabel)
-    namefield.setText("Name")
-    self.field3.setAccessibleName("Name")
-    spc = self.field4.findChild(QtWidgets.QLabel)
-    spc.setText("SPC")
-    self.field4.setAccessibleName("SPC")
+    label = self.field3.findChild(QtWidgets.QLabel)
+    label.setText("Sent")
+    self.field3.setAccessibleName("Sent")
+    label = self.field4.findChild(QtWidgets.QLabel)
+    label.setText("Canton/SN")
+    self.field4.setAccessibleName("Canton or SN")
 
 
 def reset_label(self):
@@ -85,6 +132,12 @@ def set_tab_next(self):
     """Set TAB Advances"""
     self.tab_next = {
         self.callsign: self.field3.findChild(QtWidgets.QLineEdit),
+        self.field1.findChild(QtWidgets.QLineEdit): self.field3.findChild(
+            QtWidgets.QLineEdit
+        ),
+        self.field2.findChild(QtWidgets.QLineEdit): self.field3.findChild(
+            QtWidgets.QLineEdit
+        ),
         self.field3.findChild(QtWidgets.QLineEdit): self.field4.findChild(
             QtWidgets.QLineEdit
         ),
@@ -96,6 +149,8 @@ def set_tab_prev(self):
     """Set TAB Advances"""
     self.tab_prev = {
         self.callsign: self.field4.findChild(QtWidgets.QLineEdit),
+        self.field1.findChild(QtWidgets.QLineEdit): self.callsign,
+        self.field2.findChild(QtWidgets.QLineEdit): self.callsign,
         self.field3.findChild(QtWidgets.QLineEdit): self.callsign,
         self.field4.findChild(QtWidgets.QLineEdit): self.field3.findChild(
             QtWidgets.QLineEdit
@@ -107,18 +162,41 @@ def set_contact_vars(self):
     """Contest Specific"""
     self.contact["SNT"] = self.sent.text()
     self.contact["RCV"] = self.receive.text()
-    self.contact["Name"] = self.other_1.text().upper()
-    self.contact["Sect"] = self.other_2.text().upper()
-    self.contact["SentNr"] = self.contest_settings.get("SentExchange", 0)
+    self.contact["SentNr"] = self.other_1.text().upper()
+    self.contact["NR"] = self.other_2.text().upper()
 
-    if self.contact.get("Sect", ""):
-        result = self.database.fetch_sect_band_exists(
-            self.contact.get("Sect", ""), self.contact.get("Band", "")
+    self.contact["IsMultiplier1"] = 0
+    self.contact["IsMultiplier2"] = 0
+
+    if (
+        self.contact.get("CountryPrefix", "") == "HB"
+        and self.contact.get("NR", "").isalpha()
+    ):
+        canton = self.contact.get("NR", "").upper()
+        band = self.contact.get("Band", "")
+        query = (
+            f"select count(*) as canton_count from dxlog where "
+            f"NR = '{canton}' "
+            f"and Band = '{band}' "
+            f"and ContestNR = {self.pref.get('contest', '1')};"
         )
-        if result.get("sect_count", ""):
-            self.contact["IsMultiplier1"] = 0
-        else:
+        result = self.database.exec_sql(query)
+        count = int(result.get("canton_count", 0))
+        if count == 0:
             self.contact["IsMultiplier1"] = 1
+
+    if self.contact.get("CountryPrefix", ""):
+        dxcc = self.contact.get("CountryPrefix", "")
+        band = self.contact.get("Band", "")
+        query = (
+            f"select count(*) as dxcc_count from dxlog where "
+            f"CountryPrefix = '{dxcc}' "
+            f"and Band = '{band}' "
+            f"and ContestNR = {self.pref.get('contest', '1')};"
+        )
+        result = self.database.exec_sql(query)
+        if not result.get("dxcc_count", ""):
+            self.contact["IsMultiplier2"] = 1
 
 
 def predupe(self):
@@ -126,20 +204,55 @@ def predupe(self):
 
 
 def prefill(self):
-    """Fill sentnr"""
+    """Fill SentNR"""
+    field = self.field3.findChild(QtWidgets.QLineEdit)
+    sent_sxchange_setting = self.contest_settings.get("SentExchange", "")
+    if sent_sxchange_setting.strip() == "#":
+        result = self.database.get_serial()
+        serial_nr = str(result.get("serial_nr", "1")).zfill(3)
+        if serial_nr == "None":
+            serial_nr = "001"
+        if len(field.text()) == 0:
+            field.setText(serial_nr)
+    else:
+        field.setText(sent_sxchange_setting)
 
 
 def points(self):
-    """Calc point"""
-    return 1
+    """
+    Scoring:
+    Contact with a station within the same continent: 1 point
+    Contact with a station outside the operator’s continent: 3 points
+    Contact with a station in Switzerland: 10 points
+    self.contact["CountryPrefix"]
+    self.contact["Continent"]
+    """
+    result = self.cty_lookup(self.station.get("Call", ""))
+    if result:
+        for item in result.items():
+            my_continent = item[1].get("continent", "")
+    result = self.cty_lookup(self.contact.get("Call", ""))
+    if result:
+        for item in result.items():
+            their_country = item[1].get("entity", "")
+            their_continent = item[1].get("continent", "")
+
+            if their_country == "Switzerland":
+                return 10
+
+            if my_continent != their_continent:
+                return 3
+
+            return 1
+    # Something wrong
+    return 0
 
 
 def show_mults(self):
     """Return display string for mults"""
-    result = self.database.fetch_section_band_count_nodx()
-    if result:
-        return int(result.get("sb_count", 0))
-    return 0
+    return int(self.database.fetch_mult_count(1).get("count", 0)) + int(
+        self.database.fetch_mult_count(2).get("count", 0)
+    )
 
 
 def show_qso(self):
@@ -163,9 +276,52 @@ def calc_score(self):
     return 0
 
 
+def recalculate_mults(self):
+    """Recalculates multipliers after change in logged qso."""
+
+    all_contacts = self.database.fetch_all_contacts_asc()
+    for contact in all_contacts:
+
+        contact["IsMultiplier1"] = 0
+        contact["IsMultiplier2"] = 0
+
+        time_stamp = contact.get("TS", "")
+        canton = contact.get("NR", "")
+        dxcc = contact.get("CountryPrefix", "")
+        band = contact.get("Band", "")
+        if dxcc == "HB" and canton.isalpha():
+            query = (
+                f"select count(*) as canton_count from dxlog where  TS < '{time_stamp}' "
+                f"and NR = '{canton.upper()}' "
+                f"and Band = '{band}' "
+                f"and ContestNR = {self.pref.get('contest', '1')};"
+            )
+            result = self.database.exec_sql(query)
+            count = int(result.get("canton_count", 0))
+            if count == 0:
+                contact["IsMultiplier1"] = 1
+
+        if dxcc:
+            query = (
+                f"select count(*) as dxcc_count from dxlog where TS < '{time_stamp}' "
+                f"and CountryPrefix = '{dxcc}' "
+                f"and Band = '{band}' "
+                f"and ContestNR = {self.pref.get('contest', '1')};"
+            )
+            result = self.database.exec_sql(query)
+            if not result.get("dxcc_count", ""):
+                contact["IsMultiplier2"] = 1
+
+        self.database.change_contact(contact)
+    cmd = {}
+    cmd["cmd"] = "UPDATELOG"
+    cmd["station"] = platform.node()
+    self.multicast_interface.send_as_json(cmd)
+
+
 def adif(self):
     """Call the generate ADIF function"""
-    gen_adif(self, cabrillo_name, "K1USN-SST")
+    gen_adif(self, cabrillo_name, "HELVETIA")
 
 
 def cabrillo(self):
@@ -179,7 +335,7 @@ def cabrillo(self):
     filename = (
         str(Path.home())
         + "/"
-        + f"{self.station.get('Call','').upper()}_{cabrillo_name}_{date_time}.log"
+        + f"{self.station.get('Call', '').upper()}_{cabrillo_name}_{date_time}.log"
     )
     logger.debug("%s", filename)
     log = self.database.fetch_all_contacts_asc()
@@ -325,10 +481,11 @@ def cabrillo(self):
                 print(
                     f"QSO: {frequency} {themode} {loggeddate} {loggedtime} "
                     f"{contact.get('StationPrefix', '').ljust(13)} "
-                    f"{str(contact.get('SentNr', '')).upper()} "
+                    f"{str(contact.get('SNT', '')).ljust(3)} "
+                    f"{str(contact.get('SentNr', '')).ljust(6)} "
                     f"{contact.get('Call', '').ljust(13)} "
-                    f"{str(contact.get('Name', '')).ljust(11)} "
-                    f"{str(contact.get('Sect', '')).ljust(5)}",
+                    f"{str(contact.get('RCV', '')).ljust(3)} "
+                    f"{str(contact.get('NR', '')).ljust(6)}",
                     end="\r\n",
                     file=file_descriptor,
                 )
@@ -338,30 +495,3 @@ def cabrillo(self):
         logger.critical("cabrillo: IO error: %s, writing to %s", exception, filename)
         self.show_message_box(f"Error saving Cabrillo: {exception} {filename}")
         return
-
-
-def recalculate_mults(self):
-    """Recalculates multipliers after change in logged qso."""
-
-    all_contacts = self.database.fetch_all_contacts_asc()
-    for contact in all_contacts:
-        time_stamp = contact.get("TS", "")
-        sect = contact.get("Sect", "")
-        band = contact.get("Band", "")
-        query = (
-            f"select count(*) as sect_count from dxlog where  TS < '{time_stamp}' "
-            f"and Sect = '{sect}' "
-            f"and Band = '{band}' "
-            f"and ContestNR = {self.pref.get('contest', '1')};"
-        )
-        result = self.database.exec_sql(query)
-        count = result.get("sect_count", 1)
-        if count == 0 and contact.get("Points", 0) == 1 and sect != "DX":
-            contact["IsMultiplier1"] = 1
-        else:
-            contact["IsMultiplier1"] = 0
-        self.database.change_contact(contact)
-        cmd = {}
-        cmd["cmd"] = "UPDATELOG"
-        cmd["station"] = platform.node()
-        self.multicast_interface.send_as_json(cmd)

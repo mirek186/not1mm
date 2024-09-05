@@ -16,21 +16,18 @@ import locale
 import logging
 from logging.handlers import RotatingFileHandler
 import os
-
 import platform
-import re
 import socket
-
 import sys
 import threading
 import uuid
 
 from json import dumps, loads
+from json.decoder import JSONDecodeError
 from pathlib import Path
 from shutil import copyfile
 
 import notctyparser
-import psutil
 
 try:
     import sounddevice as sd
@@ -39,9 +36,9 @@ except OSError as exception:
     print("portaudio is not installed")
     sd = None
 from PyQt6 import QtCore, QtGui, QtWidgets, uic
-from PyQt6.QtCore import QDir, Qt, QThread, QSettings
-from PyQt6.QtGui import QFontDatabase, QColorConstants, QPalette, QColor
-from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtCore import QDir, Qt, QThread, QSettings, QCoreApplication
+from PyQt6.QtGui import QFontDatabase, QColorConstants, QPalette, QColor, QPixmap
+from PyQt6.QtWidgets import QFileDialog, QSplashScreen
 
 from not1mm.lib.about import About
 from not1mm.lib.cwinterface import CW
@@ -70,6 +67,7 @@ from not1mm.lib.settings import Settings
 from not1mm.lib.version import __version__
 from not1mm.lib.versiontest import VersionTest
 from not1mm.lib.ft8_watcher import FT8Watcher
+from not1mm.lib.fldigi_watcher import FlDigiWatcher
 
 import not1mm.fsutils as fsutils
 from not1mm.logwindow import LogWindow
@@ -81,28 +79,6 @@ from not1mm.radio import Radio
 from not1mm.voice_keying import Voice
 
 poll_time = datetime.datetime.now()
-
-
-def check_process(name: str) -> bool:
-    """
-    Checks to see if the name of the program is in the active process list.
-
-    Parameters
-    ----------
-    name : str
-
-    Returns
-    -------
-    Bool
-    """
-    for proc in psutil.process_iter():
-        try:
-            if len(proc.cmdline()) == 2:
-                if name in proc.cmdline()[1] and "python" in proc.cmdline()[0]:
-                    return True
-        except (psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
-            continue
-    return False
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -189,7 +165,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     radio_thread = QThread()
     voice_thread = QThread()
+    fldigi_thread = QThread()
 
+    fldigi_watcher = None
     rig_control = None
     log_window = None
     check_window = None
@@ -214,14 +192,13 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.setCorner(Qt.Corner.TopLeftCorner, Qt.DockWidgetArea.LeftDockWidgetArea)
         self.setCorner(Qt.Corner.BottomLeftCorner, Qt.DockWidgetArea.LeftDockWidgetArea)
-        data_path = fsutils.APP_DATA_PATH / "main.ui"
-        uic.loadUi(data_path, self)
+        uic.loadUi(fsutils.APP_DATA_PATH / "main.ui", self)
         self.cw_entry.hide()
         self.leftdot.hide()
         self.rightdot.hide()
         self.n1mm = N1MM()
         self.ft8 = FT8Watcher()
-        self.ft8.set_callback(self.ft8_result)
+        self.ft8.set_callback(None)
         self.mscp = SCP(fsutils.APP_DATA_PATH)
         self.next_field = self.other_2
         self.dupe_indicator.hide()
@@ -488,8 +465,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowIcon(
             QtGui.QIcon(str(fsutils.APP_DATA_PATH / "k6gte.not1mm-32.png"))
         )
-        with open(fsutils.APP_DATA_PATH / "cty.json", "rt", encoding="utf-8") as c_file:
-            self.ctyfile = loads(c_file.read())
+
+        try:
+            with open(
+                fsutils.APP_DATA_PATH / "cty.json", "rt", encoding="utf-8"
+            ) as c_file:
+                self.ctyfile = loads(c_file.read())
+        except (IOError, JSONDecodeError, TypeError):
+            logging.CRITICAL("There was an error parsing the BigCity file.")
+
         self.readpreferences()
 
         self.voice_process = Voice()
@@ -520,28 +504,47 @@ class MainWindow(QtWidgets.QMainWindow):
         self.make_op_dir()
 
         self.clearinputs()
-
-        if self.pref.get("contest"):
-            self.load_contest()
+        self.load_contest()
         self.read_cw_macros()
+
+        # Featureset for wayland
+        dockfeatures = (
+            QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable
+            | QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable
+        )
+
+        self.fldigi_watcher = FlDigiWatcher()
+        self.fldigi_watcher.moveToThread(self.fldigi_thread)
+        self.fldigi_thread.started.connect(self.fldigi_watcher.run)
+        self.fldigi_thread.finished.connect(self.fldigi_watcher.deleteLater)
+        self.fldigi_watcher.poll_callback.connect(self.fldigi_qso)
+        self.fldigi_thread.start()
 
         self.log_window = LogWindow()
         self.log_window.setObjectName("log-window")
+        if os.environ.get("WAYLAND_DISPLAY"):
+            self.log_window.setFeatures(dockfeatures)
         self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, self.log_window)
         self.log_window.hide()
 
         self.bandmap_window = BandMapWindow()
         self.bandmap_window.setObjectName("bandmap-window")
+        if os.environ.get("WAYLAND_DISPLAY"):
+            self.bandmap_window.setFeatures(dockfeatures)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.bandmap_window)
         self.bandmap_window.hide()
 
         self.check_window = CheckWindow()
         self.check_window.setObjectName("check-window")
+        if os.environ.get("WAYLAND_DISPLAY"):
+            self.check_window.setFeatures(dockfeatures)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.check_window)
         self.check_window.hide()
 
         self.vfo_window = VfoWindow()
         self.vfo_window.setObjectName("vfo-window")
+        if os.environ.get("WAYLAND_DISPLAY"):
+            self.vfo_window.setFeatures(dockfeatures)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.vfo_window)
         self.vfo_window.hide()
 
@@ -587,32 +590,50 @@ class MainWindow(QtWidgets.QMainWindow):
                     "You can udate to the current version by using:\npip install -U not1mm"
                 )
 
-    def ft8_result(self, result: dict):
+    def fldigi_qso(self, result: str):
         """
-        Callback for ft8 watcher
+        gets called when there is a new fldigi qso logged.
 
         {
-            'CALL': 'KE0OG',
-            'GRIDSQUARE': 'DM10AT',
-            'MODE': 'FT8',
-            'RST_SENT': '',
-            'RST_RCVD': '',
-            'QSO_DATE': '20210329',
-            'TIME_ON': '183213',
-            'QSO_DATE_OFF': '20210329',
-            'TIME_OFF': '183213',
-            'BAND': '20M',
-            'FREQ': '14.074754',
+            'FREQ': '7.029500',
+            'CALL': 'DL2DSL',
+            'MODE': 'RTTY',
+            'NAME': 'BOB',
+            'QSO_DATE': '20240904',
+            'QSO_DATE_OFF': '20240904',
+            'TIME_OFF': '212825',
+            'TIME_ON': '212800',
+            'RST_RCVD': '599',
+            'RST_SENT': '599',
+            'BAND': '40M',
+            'COUNTRY': 'FED. REP. OF GERMANY',
+            'CQZ': '14',
+            'STX': '000',
+            'STX_STRING': '1D ORG',
+            'CLASS': '1D',
+            'ARRL_SECT': 'DX',
+            'TX_PWR': '0',
+            'OPERATOR': 'K6GTE',
             'STATION_CALLSIGN': 'K6GTE',
             'MY_GRIDSQUARE': 'DM13AT',
-            'CONTEST_ID': 'ARRL-FIELD-DAY',
-            'SRX_STRING': '1D UT',
-            'CLASS': '1D',
-            'ARRL_SECT': 'UT'
+            'MY_CITY': 'ANAHEIM, CA',
+            'MY_STATE': 'CA'
         }
 
         """
-        print(f"{result=}")
+
+        datadict = {}
+        splitdata = result.upper().strip().split("<")
+        for data in splitdata:
+            if data:
+                tag = data.split(":")
+                if tag == ["EOR>"]:
+                    break
+                datadict[tag[0]] = tag[1].split(">")[1].strip()
+        logger.debug(f"{datadict=}")
+        if hasattr(self.contest, "ft8_handler"):
+            self.contest.set_self(self)
+            self.contest.ft8_handler(datadict)
 
     def setDarkMode(self, setdarkmode=False) -> None:
         """Forces a darkmode palette."""
@@ -795,25 +816,6 @@ class MainWindow(QtWidgets.QMainWindow):
         cmd["station"] = platform.node()
         self.multicast_interface.send_as_json(cmd)
         app.quit()
-
-    @staticmethod
-    def check_process(name: str) -> bool:
-        """
-        Checks to see if program is in the active process list.
-
-        Parameters
-        ----------
-        name : str
-
-        Returns
-        -------
-        Bool
-        """
-
-        for proc in psutil.process_iter():
-            if bool(re.match(name, proc.name().lower())):
-                return True
-        return False
 
     def show_message_box(self, message: str) -> None:
         """
@@ -1332,10 +1334,15 @@ class MainWindow(QtWidgets.QMainWindow):
             if updated:
                 cty.dump(fsutils.APP_DATA_PATH / "cty.json")
                 self.show_message_box("cty file updated.")
-                with open(
-                    fsutils.APP_DATA_PATH / "cty.json", "rt", encoding="utf-8"
-                ) as ctyfile:
-                    self.ctyfile = loads(ctyfile.read())
+                try:
+                    with open(
+                        fsutils.APP_DATA_PATH / "cty.json", "rt", encoding="utf-8"
+                    ) as ctyfile:
+                        self.ctyfile = loads(ctyfile.read())
+                except (IOError, JSONDecodeError, TypeError) as err:
+                    logging.CRITICAL(
+                        f"There was an error {err} parsing the BigCity file."
+                    )
             else:
                 self.show_message_box("An Error occured updating file.")
         else:
@@ -1954,11 +1961,14 @@ class MainWindow(QtWidgets.QMainWindow):
             " "
         )[:19]
         self.contact["Call"] = self.callsign.text()
-        self.contact["Freq"] = round(float(self.radio_state.get("vfoa", 0.0)) / 1000, 2)
-        self.contact["QSXFreq"] = round(
-            float(self.radio_state.get("vfoa", 0.0)) / 1000, 2
-        )
-        self.contact["Mode"] = self.radio_state.get("mode", "")
+        if self.contact.get("Mode") not in ("FT8", "FT4"):
+            self.contact["Freq"] = round(
+                float(self.radio_state.get("vfoa", 0.0)) / 1000, 2
+            )
+            self.contact["QSXFreq"] = round(
+                float(self.radio_state.get("vfoa", 0.0)) / 1000, 2
+            )
+            self.contact["Mode"] = self.radio_state.get("mode", "")
         self.contact["ContestName"] = self.contest.cabrillo_name
         self.contact["ContestNR"] = self.pref.get("contest", "0")
         self.contact["StationPrefix"] = self.station.get("Call", "")
@@ -2149,7 +2159,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def save_settings(self) -> None:
         """
-        Save settings to database.
+        Save Station settings to database.
 
         Parameters
         ----------
@@ -2378,7 +2388,7 @@ class MainWindow(QtWidgets.QMainWindow):
             with open(fsutils.CONFIG_FILE, "wt", encoding="utf-8") as file_descriptor:
                 file_descriptor.write(dumps(self.pref, indent=4))
                 # logger.info("writing: %s", self.pref)
-        except IOError as exception:
+        except (IOError, TypeError, ValueError) as exception:
             logger.critical("writepreferences: %s", exception)
 
     def readpreferences(self) -> None:
@@ -2400,7 +2410,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 with open(
                     fsutils.CONFIG_FILE, "rt", encoding="utf-8"
                 ) as file_descriptor:
-                    self.pref = loads(file_descriptor.read())
+                    try:
+                        self.pref = loads(file_descriptor.read())
+                    except (JSONDecodeError, TypeError):
+                        logging.CRITICAL(
+                            "There was an error parsing the preference file."
+                        )
                     logger.info("%s", self.pref)
             else:
                 logger.info("No preference file. Writing preference.")
@@ -2410,7 +2425,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.pref = self.pref_ref.copy()
                     file_descriptor.write(dumps(self.pref, indent=4))
                     logger.info("%s", self.pref)
-        except IOError as exception:
+        except (IOError, TypeError, ValueError) as exception:
             logger.critical("Error: %s", exception)
 
         self.look_up = None
@@ -3270,10 +3285,14 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             macro_file = "ssbmacros.txt"
         if not (fsutils.USER_DATA_PATH / macro_file).exists():
-            logger.debug("read_cw_macros: copying default macro file.")
-            copyfile(
-                fsutils.APP_DATA_PATH / macro_file, fsutils.USER_DATA_PATH / macro_file
-            )
+            logger.debug("copying default macro file.")
+            try:
+                copyfile(
+                    fsutils.APP_DATA_PATH / macro_file,
+                    fsutils.USER_DATA_PATH / macro_file,
+                )
+            except IOError as err:
+                logger.critical(f"Error {err} copying macro file.")
         try:
             fsutils.openFileWithOS(fsutils.USER_DATA_PATH / macro_file)
         except FileNotFoundError | PermissionError | OSError as err:
@@ -3294,22 +3313,26 @@ class MainWindow(QtWidgets.QMainWindow):
             macro_file = "ssbmacros.txt"
 
         if not (fsutils.USER_DATA_PATH / macro_file).exists():
-            logger.debug("read_cw_macros: copying default macro file.")
-            copyfile(
-                fsutils.APP_DATA_PATH / macro_file, fsutils.USER_DATA_PATH / macro_file
-            )
-        with open(
-            fsutils.USER_DATA_PATH / macro_file, "r", encoding="utf-8"
-        ) as file_descriptor:
-            for line in file_descriptor:
-                try:
+            logger.debug("copying default macro file.")
+            try:
+                copyfile(
+                    fsutils.APP_DATA_PATH / macro_file,
+                    fsutils.USER_DATA_PATH / macro_file,
+                )
+            except IOError as err:
+                logger.critical(f"Error {err} copying macro file.")
+        try:
+            with open(
+                fsutils.USER_DATA_PATH / macro_file, "r", encoding="utf-8"
+            ) as file_descriptor:
+                for line in file_descriptor:
                     mode, fkey, buttonname, cwtext = line.split("|")
                     if mode.strip().upper() == "R" and self.pref.get("run_state"):
                         self.fkeys[fkey.strip()] = (buttonname.strip(), cwtext.strip())
                     if mode.strip().upper() != "R" and not self.pref.get("run_state"):
                         self.fkeys[fkey.strip()] = (buttonname.strip(), cwtext.strip())
-                except ValueError as err:
-                    logger.info("read_cw_macros: %s", err)
+        except (IOError, ValueError) as err:
+            logger.info("read_cw_macros: %s", err)
         keys = self.fkeys.keys()
         if "F1" in keys:
             self.F1.setText(f"F1: {self.fkeys['F1'][0]}")
@@ -3471,12 +3494,24 @@ logging.basicConfig(
 logging.getLogger("PyQt6.uic.uiparser").setLevel("INFO")
 logging.getLogger("PyQt6.uic.properties").setLevel("INFO")
 app = QtWidgets.QApplication(sys.argv)
+
+pixmap = QPixmap(f"{os.fspath(fsutils.APP_DATA_PATH)}/splash.png")
+splash = QSplashScreen(pixmap)
+splash.show()
+app.processEvents()
+splash.showMessage(
+    "Starting Up",
+    alignment=Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignCenter,
+    color=QColor(255, 255, 0),
+)
+QCoreApplication.processEvents()
+
 families = load_fonts_from_dir(os.fspath(fsutils.APP_DATA_PATH))
 logger.info(f"font families {families}")
 window = MainWindow()
 window.callsign.setFocus()
 window.show()
-
+splash.finish(window)
 
 if __name__ == "__main__":
     run()
