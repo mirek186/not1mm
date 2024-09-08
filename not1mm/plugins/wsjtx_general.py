@@ -290,6 +290,6 @@ def ft8_handler(the_packet: dict):
         ALTEREGO.other_2.setText(the_packet.get("EMAIL", "MISSING 2"))
         logger.debug("PRINT CONTACT INFO: {0}".format(ALTEREGO.contact))
         ALTEREGO.save_contact()
-        ALTEREGO.contact["Freq"] = None
-        ALTEREGO.contact["SNT"] = None
-        ALTEREGO.contact["RCV"] = None
+        ALTEREGO.contact["Freq"] = 0.0
+        ALTEREGO.contact["SNT"] = self.sent.text()
+        ALTEREGO.contact["RCV"] = self.receive.text()
