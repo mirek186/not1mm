@@ -791,9 +791,9 @@ class LogWindow(QDockWidget):
                 QtWidgets.QTableWidgetItem(str(log_item.get("Call", ""))),
             )
             freq = log_item.get("Freq", "")
+            if not freq:
+                freq = 0.0
             try:
-                if not freq:
-                    freq = 0.0
                 widget = QtWidgets.QTableWidgetItem(str(round(float(freq), 2)))
             except ValueError:
                 widget = QtWidgets.QTableWidgetItem(str(round(0.0, 2)))
@@ -982,6 +982,8 @@ class LogWindow(QDockWidget):
                 QtWidgets.QTableWidgetItem(str(log_item.get("Call", ""))),
             )
             freq = log_item.get("Freq", "")
+            if not freq:
+                freq = 0.0
             try:
                 widget = QtWidgets.QTableWidgetItem(str(round(float(freq), 2)))
             except ValueError:
