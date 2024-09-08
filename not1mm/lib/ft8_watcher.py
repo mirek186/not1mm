@@ -66,8 +66,8 @@ class FT8Watcher:
         )
         # print("%s %s %s", sender_host, sender_port_number, datagram)
 
-        if datagram[0:4] != b"\xad\xbc\xcb\xda":
-            return  # bail if no wsjt-x magic number
+#        if datagram[0:4] != b"\xad\xbc\xcb\xda":
+#            return  # bail if no wsjt-x magic number
         version = self.getuint(datagram[4:8])
         packettype = self.getuint(datagram[8:12])
         uniquesize = self.getint(datagram[12:16])

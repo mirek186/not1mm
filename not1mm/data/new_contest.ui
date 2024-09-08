@@ -352,6 +352,12 @@
        <string>WINTER FIELD DAY</string>
       </property>
      </item>
+     <item>
+      <property name="text">
+       <string>WSJTX GENERAL</string>
+      </property>
+     </item>
+
     </widget>
    </item>
    <item row="2" column="2">
