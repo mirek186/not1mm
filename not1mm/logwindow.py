@@ -792,6 +792,8 @@ class LogWindow(QDockWidget):
             )
             freq = log_item.get("Freq", "")
             try:
+                if not freq:
+                    freq = 0.0
                 widget = QtWidgets.QTableWidgetItem(str(round(float(freq), 2)))
             except ValueError:
                 widget = QtWidgets.QTableWidgetItem(str(round(0.0, 2)))
