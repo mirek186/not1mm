@@ -206,176 +206,6 @@ def adif(self):
 def cabrillo(self):
     """Generates Cabrillo file. Maybe."""
     # https://www.cqwpx.com/cabrillo.htm
-    logger.debug("******Cabrillo*****")
-    logger.debug("Station: %s", f"{self.station}")
-    logger.debug("Contest: %s", f"{self.contest_settings}")
-    now = datetime.datetime.now()
-    date_time = now.strftime("%Y-%m-%d_%H-%M-%S")
-    filename = (
-        str(Path.home())
-        + "/"
-        + f"{self.station.get('Call', '').upper()}_{cabrillo_name}_{date_time}.log"
-    )
-    logger.debug("%s", filename)
-    log = self.database.fetch_all_contacts_asc()
-    try:
-        with open(filename, "w", encoding="ascii") as file_descriptor:
-            print("START-OF-LOG: 3.0", end="\r\n", file=file_descriptor)
-            print(
-                f"CREATED-BY: Not1MM v{__version__}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"CONTEST: {cabrillo_name}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            if self.station.get("Club", ""):
-                print(
-                    f"CLUB: {self.station.get('Club', '').upper()}",
-                    end="\r\n",
-                    file=file_descriptor,
-                )
-            print(
-                f"CALLSIGN: {self.station.get('Call','')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"LOCATION: {self.station.get('ARRLSection', '')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            # print(
-            #     f"ARRL-SECTION: {self.pref.get('section', '')}",
-            #     end="\r\n",
-            #     file=file_descriptor,
-            # )
-            print(
-                f"CATEGORY-OPERATOR: {self.contest_settings.get('OperatorCategory','')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"CATEGORY-ASSISTED: {self.contest_settings.get('AssistedCategory','')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"CATEGORY-BAND: {self.contest_settings.get('BandCategory','')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"CATEGORY-MODE: {self.contest_settings.get('ModeCategory','')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"CATEGORY-TRANSMITTER: {self.contest_settings.get('TransmitterCategory','')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            if self.contest_settings.get("OverlayCategory", "") != "N/A":
-                print(
-                    f"CATEGORY-OVERLAY: {self.contest_settings.get('OverlayCategory','')}",
-                    end="\r\n",
-                    file=file_descriptor,
-                )
-            print(
-                f"GRID-LOCATOR: {self.station.get('GridSquare','')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            # print(
-            #     f"CATEGORY: {None}",
-            #     end="\r\n",
-            #     file=file_descriptor,
-            # )
-            print(
-                f"CATEGORY-POWER: {self.contest_settings.get('PowerCategory','')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-
-            print(
-                f"CLAIMED-SCORE: {calc_score(self)}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            ops = f"@{self.station.get('Call','')}"
-            list_of_ops = self.database.get_ops()
-            for op in list_of_ops:
-                ops += f", {op.get('Operator', '')}"
-            print(
-                f"OPERATORS: {ops}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"NAME: {self.station.get('Name', '')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"ADDRESS: {self.station.get('Street1', '')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"ADDRESS-CITY: {self.station.get('City', '')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"ADDRESS-STATE-PROVINCE: {self.station.get('State', '')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"ADDRESS-POSTALCODE: {self.station.get('Zip', '')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"ADDRESS-COUNTRY: {self.station.get('Country', '')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            print(
-                f"EMAIL: {self.station.get('Email', '')}",
-                end="\r\n",
-                file=file_descriptor,
-            )
-            for contact in log:
-                the_date_and_time = contact.get("TS", "")
-                themode = contact.get("Mode", "")
-                if themode in ("LSB", "USB"):
-                    themode = "PH"
-                if themode in ("FT8", "FT4"):
-                    themode = "DG"
-                frequency = str(int(contact.get("Freq", "0"))).rjust(5)
-
-                loggeddate = the_date_and_time[:10]
-                loggedtime = the_date_and_time[11:13] + the_date_and_time[14:16]
-                print(
-                    f"QSO: {frequency} {themode} {loggeddate} {loggedtime} "
-                    f"{contact.get('StationPrefix', '').ljust(13)} "
-                    f"{self.contest_settings.get('SentExchange', '').ljust(9).upper()}"
-                    f"{contact.get('Call', '').ljust(13)} "
-                    f"{str(contact.get('Exchange1', '')).ljust(3)} "
-                    f"{str(contact.get('Sect', '')).ljust(6)}",
-                    end="\r\n",
-                    file=file_descriptor,
-                )
-            print("END-OF-LOG:", end="\r\n", file=file_descriptor)
-        self.show_message_box(f"Cabrillo saved to: {filename}")
-    except IOError as exception:
-        logger.critical("cabrillo: IO error: %s, writing to %s", exception, filename)
-        self.show_message_box(f"Error saving Cabrillo: {exception} {filename}")
-        return
-
 
 def recalculate_mults(self):
     """Recalculates multipliers after change in logged qso."""
@@ -441,10 +271,10 @@ def ft8_handler(the_packet: dict):
     if ALTEREGO is not None:
         ALTEREGO.callsign.setText(the_packet.get("CALL"))
         ALTEREGO.contact["Call"] = the_packet.get("CALL", "")
-        ALTEREGO.contact["SNT"] = ALTEREGO.sent.text()
-        ALTEREGO.contact["RCV"] = ALTEREGO.receive.text()
-        ALTEREGO.contact["Exchange1"] = the_packet.get("CLASS", "ERR")
-        ALTEREGO.contact["Sect"] = the_packet.get("ARRL_SECT", "ERR")
+        ALTEREGO.contact["SNT"] = the_packet.get("RST_SENT", "")
+        ALTEREGO.contact["RCV"] = the_packet.get("RST_RCVD", "")
+        ALTEREGO.contact["Name"] = the_packet.get("NAME", "MISSING")
+        ALTEREGO.contact["Comment"] = the_packet.get("EMAIL", "MISSING")
         ALTEREGO.contact["Mode"] = the_packet.get("MODE", "ERR")
         ALTEREGO.contact["Freq"] = round(float(the_packet.get("FREQ", "0.0")) * 1000, 2)
         ALTEREGO.contact["QSXFreq"] = round(
@@ -453,6 +283,6 @@ def ft8_handler(the_packet: dict):
         ALTEREGO.contact["Band"] = get_logged_band(
             str(int(float(the_packet.get("FREQ", "0.0")) * 1000000))
         )
-        ALTEREGO.other_1.setText(the_packet.get("CLASS", "ERR"))
-        ALTEREGO.other_2.setText(the_packet.get("ARRL_SECT", "ERR"))
+        ALTEREGO.other_1.setText(the_packet.get("NAME", "MISSING 2"))
+        ALTEREGO.other_2.setText(the_packet.get("EMAIL", "MISSING 2"))
         ALTEREGO.save_contact()
