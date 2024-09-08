@@ -126,5 +126,6 @@ class FT8Watcher:
                     break
                 self.datadict[tag[0]] = tag[1].split(">")[1].strip()
 
+        logger.debug("PARSED DATAGRAM DICT: {0}".format(self.datadict))
         if self.callback:
             self.callback(self.datadict)

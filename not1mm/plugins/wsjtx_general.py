@@ -436,7 +436,7 @@ def ft8_handler(the_packet: dict):
         }
 
     """
-    logger.debug(the_packet)
+    logger.debug("INSIDE THE HANDLER WITH PARSED PACKET: {0}".format(the_packet))
 
     if ALTEREGO is not None:
         ALTEREGO.callsign.setText(the_packet.get("CALL"))
