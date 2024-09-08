@@ -144,8 +144,11 @@ def set_tab_prev(self):
 #
 def set_contact_vars(self):
     """Contest Specific"""
-    self.contact["SNT"] = self.sent.text()
-    self.contact["RCV"] = self.receive.text()
+    logger.debug("INSIDE SET CONTACT VARS: {0}".format(self.contact))
+    if not self.contact["SNT"]:
+        self.contact["SNT"] = self.sent.text()
+    if not self.contact["RCV"]:
+        self.contact["RCV"] = self.receive.text()
     self.contact["Name"] = self.other_1.text()
     self.contact["Comment"] = self.other_2.text()
 
@@ -285,4 +288,5 @@ def ft8_handler(the_packet: dict):
         )
         ALTEREGO.other_1.setText(the_packet.get("NAME", "MISSING 2"))
         ALTEREGO.other_2.setText(the_packet.get("EMAIL", "MISSING 2"))
+        logger.debug("PRINT CONTACT INFO: {0}".format(ALTEREGO.contact))
         ALTEREGO.save_contact()
