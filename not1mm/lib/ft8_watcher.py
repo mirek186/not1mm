@@ -9,6 +9,8 @@ GPL V3
 from PyQt6 import QtNetwork
 
 import struct
+import logging
+logger = logging.getLogger(__name__)
 
 
 class FT8Watcher:
@@ -61,11 +63,13 @@ class FT8Watcher:
         I Hope...
         """
         self.datadict = {}
+        
         datagram, sender_host, sender_port_number = self.udp_socket.readDatagram(
             self.udp_socket.pendingDatagramSize()
         )
         # print("%s %s %s", sender_host, sender_port_number, datagram)
 
+        logger.debug("PRINT DATAGRAM: {0}".format(datagram))
 #        if datagram[0:4] != b"\xad\xbc\xcb\xda":
 #            return  # bail if no wsjt-x magic number
         version = self.getuint(datagram[4:8])
