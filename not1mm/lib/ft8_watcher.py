@@ -110,7 +110,7 @@ class FT8Watcher:
 #        if packettype != 12:
 #            return  # bail if not logged ADIF
 #        # if log packet it will contain this nugget.
-        gotcall = datagram.find(b"<call:")
+        gotcall = datagram.find(b"<call:") or datagram.find(b"<CALL:")
         if gotcall != -1:
             datagram = datagram[gotcall:]  # strip everything else
         else:
